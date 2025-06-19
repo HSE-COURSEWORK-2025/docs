@@ -1,0 +1,31 @@
+
+@startuml
+title DAG 2: Подготовка данных для ML
+
+participant "Airflow" as Airflow
+participant "Prepare Data" as PrepSvc
+participant "Auth API" as AuthAPI
+participant "PostgreSQL" as Postgres
+participant "Notifications API" as NotifAPI
+participant "SMTP" as SMTP
+
+Airflow -> PrepSvc: Запуск DAG (после выгрузки)
+activate PrepSvc
+
+PrepSvc -> NotifAPI: Уведомление о старте
+NotifAPI -> SMTP: Отправка email
+NotifAPI -> Postgres: Сохранение уведомления
+
+PrepSvc -> Postgres: Запрос сырых данных
+Postgres --> PrepSvc: Сырые данные
+
+PrepSvc -> PrepSvc: Обработка данных
+PrepSvc -> Postgres: Сохранение обработанных данных в БД
+
+PrepSvc -> NotifAPI: Уведомление о завершении
+NotifAPI -> SMTP: Отправка email
+NotifAPI -> Postgres: Сохранение уведомления
+
+Airflow <-- PrepSvc: Завершение DAG
+deactivate PrepSvc
+@enduml
