@@ -1,0 +1,115 @@
+@startuml
+
+left to right direction
+
+"Пользователь" as U
+
+package "Клиенты" {
+  component "Фронтенд" as Frontend
+  component "Android-приложение" as MobileApp
+}
+
+package "Инфраструктура" {
+  package "Микросервисы" {
+    component "Сервис авторизации" as AuthAPI
+    component "Сервис уведомлений" as NotifAPI
+    component "Сервис оценок" as RatingsAPI
+    component "Сервис сбора данных" as DataSvc
+    component "Drammatiq-обработчик" as Drammatiq
+    component "Grafana"
+  }
+  
+  package "Airflow DAGs" {
+    component "Фетчер Google API" as FetchSvc
+    component "Сервис подготовки данных" as PrepSvc
+    component "Сервис поиска выбросов" as OutliersSvc
+    component "Сервис ML-прогнозов" as MLsvc
+  }
+
+  database "PostgreSQL" as Postgres
+  component "Redis"
+  queue "Kafka"
+  component "Airflow" as AirflowCore
+}
+
+package "Внешние системы" {
+  [Google Fitness API]
+  [Google Health Connect]
+  [SMTP (mail.ru)]
+}
+
+'--- Аутентификация и настройка источников данных
+U --> Frontend : Открыть приложение
+Frontend --> AuthAPI : OAuth-вход (Google)
+AuthAPI <--> Postgres : Сохранить и получить пользователя и токены
+
+Frontend <-- AuthAPI : Запрос QR-кода для источника данных
+AuthAPI --> Redis : Сохранить данные для выгрузки через QR (временные)
+Frontend --> U : Показать QR-код
+
+'--- Мобильное приложение
+U --> MobileApp : Сканировать QR
+MobileApp <-- AuthAPI : Получить параметры для выгрузки данных (по параметрам из QR-кода)
+MobileApp --> DataSvc : Отправка сырых данных о здоровье
+MobileApp --> DataSvc : Отправка значения прогресбара выгрузки
+MobileApp <-- [Google Health Connect] : Чтение данных о здоровье
+
+'--- DAG для выгрузки из Google Fitness (Airflow)
+AirflowCore --> FetchSvc : Запуск DAG
+FetchSvc <-- AuthAPI : Получить токен Google Fitness API
+FetchSvc <-- [Google Fitness API] : Получение данных о здоровье
+FetchSvc --> NotifAPI : Уведомить о начале/конце
+FetchSvc --> DataSvc : Отправка сырых данных
+
+'--- Сервисы хранения данных
+DataSvc --> Kafka : Отправить сырые записи
+Drammatiq <-- Kafka : Считать сырые записи
+Drammatiq --> Postgres : Сохранить обработанные данные
+Drammatiq --> Redis : Сохранить offset Kafka
+DataSvc --> Redis : Сохранить значение прогресбара выгрузки
+DataSvc <-- Postgres : Получить обработанные данные
+DataSvc <-- Postgres : Получить исходные данные
+
+
+'--- DAG для обработки данных (Airflow)
+AirflowCore --> PrepSvc : Запуск DAG
+PrepSvc --> Postgres : Сохранить подготовленные данные
+PrepSvc --> NotifAPI : Уведомить о начале/конце
+PrepSvc --> AuthAPI : Получить данные пользователя
+
+AirflowCore --> OutliersSvc : Запуск DAG
+OutliersSvc --> Postgres : Сохранить найденные выбросы
+OutliersSvc <-- Postgres: Получить обработанные и исходные данные
+OutliersSvc --> NotifAPI : Уведомить о начале/конце
+OutliersSvc <-- AuthAPI : Получить данные пользователя
+
+AirflowCore --> MLsvc : Запуск DAG
+MLsvc --> Postgres : Сохранить вероятности диагнозов
+MLsvc <-- Postgres: Получить обработанные данные
+MLsvc --> NotifAPI : Уведомить о начале/конце
+MLsvc <-- AuthAPI : Получить данные пользователя
+
+'--- Отображение в веб-фронтенде
+Frontend <-- DataSvc : Получить исходные и обработанные данные и предсказания
+Frontend <-- DataSvc : Получить статус прогресбара выгрузки данных
+Frontend <-- NotifAPI : Получение статуса наличия новых уведомлений
+Frontend <-- NotifAPI : Получение всех уведомлений
+Frontend <--> RatingsAPI : Получение и отправка оценок
+Frontend <-- AuthAPI : Получение QR для выгрузки данных
+
+'--- Оценки приложения
+RatingsAPI <--> Postgres : Сохранить и получить оценки
+
+'--- Уведомления
+NotifAPI --> [SMTP (mail.ru)] : Отправка email
+NotifAPI <--> Postgres : Сохранить и получить уведомления
+
+'--- Мониторинг
+Grafana <-- Postgres : Запрос данных для метрик
+
+'--- Оркестрация задач
+AirflowCore -[hidden]d-> FetchSvc
+AirflowCore -[hidden]d-> PrepSvc
+AirflowCore -[hidden]d-> OutliersSvc
+AirflowCore -[hidden]d-> MLsvc
+@enduml
