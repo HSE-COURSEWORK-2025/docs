@@ -1,0 +1,112 @@
+@startuml
+title Сценарий 3: Взаимодействие фронтенда с бэкендом
+
+actor "Пользователь" as User
+participant "Веб-фронтенд" as Frontend
+participant "Сервис авторизации" as AuthAPI
+participant "Сервис сбора данных" as DataSvc
+participant "Сервис уведомлений" as NotifAPI
+participant "Сервис оценок" as RatingsAPI
+participant "PostgreSQL" as Postgres
+participant "Redis" as Redis
+
+== Аутентификация ==
+User -> Frontend: Открывает приложение
+Frontend -> AuthAPI: Запрос OAuth-ссылки
+AuthAPI --> Frontend: URL для авторизации в Google
+Frontend --> User: Перенаправление на Google
+
+User -> Google: Вводит учетные данные
+Google --> Frontend: Код авторизации
+Frontend -> AuthAPI: Передает код авторизации
+AuthAPI -> Postgres: Сохраняет пользователя
+AuthAPI --> Frontend: JWT-токен
+Frontend -> User: Отображает главную страницу
+
+== Работа с данными ==
+group Выгрузка данных с мобильного устройства
+    User -> Frontend: Переходит на страницу выгрузки
+    Frontend -> AuthAPI: Запрос QR-кода
+    AuthAPI --> Frontend: QR-код
+    Frontend --> User: Отображает QR-код
+    
+    User -> MobileApp: Сканирует QR-код
+    note over User, MobileApp: Данные начинают выгружаться из Google Health Connect в Data Collection API
+end
+
+group Отслеживание прогресса выгрузки
+    User -> Frontend: Переходит на страницу статуса
+    Frontend -> DataSvc: Запрос статуса выгрузки
+    
+    loop Каждые 5 секунд
+        DataSvc -> Redis: Получает статус прогресса
+        DataSvc --> Frontend: Возвращает прогресс через вебсокет
+        Frontend --> User: Отображает прогресс-бар
+    end
+end
+
+group Просмотр данных и графиков
+    User -> Frontend: Переходит на страницу графиков
+    Frontend -> DataSvc: Запрос исходных данных
+    DataSvc -> Postgres: Чтение данных
+    Postgres --> DataSvc: Возвращает данные
+    DataSvc --> Frontend: Возвращает данные
+    Frontend --> User: Отображает графики
+    
+    Frontend -> DataSvc: Запрос данных с выбросами
+    DataSvc -> Postgres: Запрос данных с выбросами
+    Postgres --> DataSvc: Данные с выбросами
+    DataSvc --> Frontend: Данные с выбросами
+    Frontend --> User: Отображает данные с выбросами
+    
+    Frontend -> DataSvc: Запрос прогнозов
+    DataSvc -> Postgres: Чтение прогнозов
+    Postgres --> DataSvc: Возвращает прогнозы
+    DataSvc --> Frontend: Возвращает прогнозы
+    Frontend --> User: Отображает прогнозы
+end
+
+group Генерация отчета
+    User -> Frontend: Нажимает "Сгенерировать отчет (PDF)"
+    Frontend -> Frontend: Формирует PDF-отчет
+    Frontend --> User: Возвращает файл для скачивания
+end
+
+== Уведомления ==
+group Проверка статуса новых уведомлений
+    Frontend -> NotifAPI: Подписка на уведомления (WebSocket)
+    
+    loop При появлении новых событий
+        NotifAPI -> Postgres: Проверка новых уведомлений
+        Postgres --> NotifAPI: Статус наличия новых уведомлений
+        NotifAPI --> Frontend: Push-уведомление
+        Frontend --> User: Отображает иконку уведомлений
+    end
+end
+
+group Просмотр всех уведомлений
+    User -> Frontend: Переходит на страницу уведомлений
+    Frontend -> NotifAPI: Запрос всех уведомлений
+    NotifAPI -> Postgres: Получение всех уведомлений
+    Postgres --> NotifAPI: Все уведомления
+    NotifAPI --> Frontend: Все уведомления
+    Frontend --> User: Отображает список уведомлений
+end
+
+== Оценка приложения ==
+group Оценка приложения
+    User -> Frontend: Переходит на страницу "Оценить приложение"
+    Frontend --> User: Отображает форму оценки
+    
+    User -> Frontend: Выбирает оценку (1-5) и нажимает "Поставить оценку"
+    Frontend -> RatingsAPI: Отправка оценки
+    RatingsAPI -> Postgres: Сохраняет оценку
+    RatingsAPI --> Frontend: Подтверждение сохранения
+    Frontend --> User: Показывает сообщение о сохранении оценки
+end
+
+== Выход из системы ==
+User -> Frontend: Нажимает "Выйти из аккаунта"
+Frontend --> Frontend: Удаляет JWT-токен и очищает сессию
+Frontend --> User: Перенаправляет на страницу входа
+@enduml
