@@ -1,0 +1,34 @@
+
+@startuml
+title DAG 4: ML-прогнозирование диагнозов
+
+participant "Airflow" as Airflow
+participant "ML Predictions" as MLsvc
+participant "Auth API" as AuthAPI
+participant "PostgreSQL" as Postgres
+participant "Notifications API" as NotifAPI
+participant "SMTP" as SMTP
+
+Airflow -> MLsvc: Запуск DAG (после подготовки)
+activate MLsvc
+
+MLsvc -> NotifAPI: Уведомление о старте
+NotifAPI -> SMTP: Отправка email
+NotifAPI -> Postgres: Сохранение уведомления
+
+MLsvc -> AuthAPI: Запрос физиологических данных о пользователе
+AuthAPI --> MLsvc: Физиологические данные о пользователе
+
+MLsvc -> Postgres: Запрос подготовленных данных
+Postgres --> MLsvc: Подготовленные данные
+
+MLsvc -> MLsvc: Выполнение прогнозов с помощью ML-моделей
+MLsvc -> Postgres: Сохранение в БД
+
+MLsvc -> NotifAPI: Уведомление о завершении
+NotifAPI -> SMTP: Отправка email
+NotifAPI -> Postgres: Сохранение уведомления
+
+Airflow <-- MLsvc: Завершение DAG
+deactivate MLsvc
+@enduml
