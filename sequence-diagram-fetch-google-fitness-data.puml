@@ -1,0 +1,57 @@
+
+@startuml
+title Сценарий 1: Выгрузка данных из Google Fitness API и мобильного приложения
+
+actor U as "Пользователь"
+actor System as "Система"
+
+participant AirflowCore as "Airflow"
+participant FetchSvc as "Сервис загрузки из Google"
+participant AuthAPI as "Сервис авторизации"
+participant GoogleFitness as "Google Fitness API"
+participant DataSvc as "Сервис сбора данных"
+participant Redis as "Redis"
+participant Kafka as "Kafka"
+participant Drammatiq as "Drammatiq-обработчик"
+participant Postgres as "PostgreSQL"
+participant MobileApp as "Android-приложение"
+participant GoogleHealth as "Google Health Connect"
+participant NotifAPI as "Сервис уведомлений"
+participant SMTP as "SMTP (mail.ru)"
+
+group Автоматическая выгрузка через Google Fitness
+    System -> AirflowCore : Запуск DAG выгрузки
+    AirflowCore -> FetchSvc : Инициировать Fetch
+    FetchSvc -> NotifAPI : Уведомить о старте
+NotifAPI -> Postgres: Сохранение уведомления
+    NotifAPI -> SMTP : Отправить email
+    FetchSvc -> AuthAPI : Получить токен Google
+    AuthAPI --> FetchSvc : Токен
+    FetchSvc -> GoogleFitness : Запрос данных
+    GoogleFitness --> FetchSvc : Данные
+    FetchSvc -> DataSvc : Отправка сырых данных
+    DataSvc -> Redis : Сохранить статус прогресса выгрузки
+    DataSvc -> Kafka : Отправить сырые данные
+    Kafka -> Drammatiq : Считать сырые данные и нормализовать
+    Drammatiq -> Postgres : Сохранить нормализованные данные
+    FetchSvc -> NotifAPI : Уведомить о завершении
+NotifAPI -> Postgres: Сохранение уведомления
+    NotifAPI -> SMTP : Отправить email
+end
+
+group Выгрузка через мобильное приложение
+    U -> MobileApp : Сканирует QR
+    MobileApp -> AuthAPI : Запрос параметров для выгрузки данных
+    AuthAPI --> MobileApp : Параметры выгрузки
+    MobileApp -> GoogleHealth : Запрос данных о здоровье
+    GoogleHealth --> MobileApp : Данные о здоровье
+    MobileApp -> DataSvc : Отправка сырых данных
+    MobileApp -> DataSvc : Отправить статус прогресса выгрузки
+
+    DataSvc -> Kafka : Отправить сырые данные
+    Drammatiq -> Kafka : Считать сырые данные и нормализовать
+    Drammatiq -> Postgres : Сохранить нормализованные данные
+ 
+end
+
+@enduml
