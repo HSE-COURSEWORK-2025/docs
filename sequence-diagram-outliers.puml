@@ -1,0 +1,31 @@
+
+@startuml
+title DAG 3: Поиск выбросов в данных
+
+participant "Airflow" as Airflow
+participant "Find Outliers" as OutliersSvc
+participant "Auth API" as AuthAPI
+participant "PostgreSQL" as Postgres
+participant "Notifications API" as NotifAPI
+participant "SMTP" as SMTP
+
+Airflow -> OutliersSvc: Запуск DAG (после подготовки)
+activate OutliersSvc
+
+OutliersSvc -> NotifAPI: Уведомление о старте
+NotifAPI -> SMTP: Отправка email
+NotifAPI -> Postgres: Сохранение уведомления
+
+OutliersSvc -> AuthAPI: Запрос исходных данных о здоровье
+AuthAPI --> OutliersSvc: Исходные данные о здоровье
+
+OutliersSvc -> OutliersSvc: Выявление аномалий
+OutliersSvc -> Postgres: Сохранение в БД
+
+OutliersSvc -> NotifAPI: Уведомление о завершении
+NotifAPI -> SMTP: Отправка email
+NotifAPI -> Postgres: Сохранение уведомления
+
+Airflow <-- OutliersSvc: Завершение DAG
+deactivate OutliersSvc
+@enduml
