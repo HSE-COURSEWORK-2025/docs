@@ -1,0 +1,94 @@
+@startuml
+!theme plain
+skinparam nodesep 20
+skinparam ranksep 20
+title Диаграмма развертывания
+
+node "Kubernetes Cluster" {
+  folder "Ingress" {
+    [ingress-nginx] as ingress #lightblue
+  }
+  
+  folder "Микросервисы" {
+    [hse-coursework-auth-api] as auth_api #palegreen
+    [hse-coursework-notificaitons-api] as notif_api #palegreen
+    [hse-coursework-ratings-api] as ratings_api #palegreen
+    [hse-coursework-data-collection-api] as data_svc #palegreen
+    [hse-coursework-drammatiq] as drammatiq #palegreen
+    [hse-coursework-grafana] as grafana #palegreen
+  }
+  
+  folder "Airflow" {
+    [airflow-webserver] as airflow_web #lightcoral
+    [airflow-scheduler] as airflow_sched #lightcoral
+    [airflow-worker] as airflow_worker #lightcoral
+    
+    folder "DAG Pods" {
+      [fetch-users] as fetch_pod #moccasin
+      [process_data] as prepare_pod #moccasin
+      [find_outliers] as outliers_pod #moccasin
+      [predict_using_ml] as ml_pod #moccasin
+    }
+  }
+  
+  folder "Фронтенд" {
+    [hse-coursework-front] as frontend #violet
+  }
+  
+  folder "Хранилища в кластере" {
+    [Redis] as redis #wheat
+    [Kafka] as kafka #wheat
+  }
+}
+
+node "On-Premise" {
+  database "PostgreSQL" as postgres #wheat
+}
+
+node "Внешние системы" {
+  [Google API] as google_api
+  [SMTP Server] as smtp
+  [Android Devices] as android
+}
+
+' Связи внутри кластера
+ingress --> frontend: Проксирует трафик\nпорт 80/443
+frontend --> auth_api
+frontend --> data_svc
+frontend --> notif_api
+frontend --> ratings_api
+
+data_svc --> kafka: Очередь данных
+drammatiq --> kafka: Чтение данных
+drammatiq --> redis: Offsets Kafka
+notif_api --> redis: Состояния уведомлений
+
+' Связи с PostgreSQL
+auth_api --> postgres: Хранение пользователей\nи токенов
+drammatiq --> postgres: Сохранение\nнормализованных данных
+notif_api --> postgres: Уведомления
+ratings_api --> postgres: Оценки
+grafana --> postgres: Мониторинг
+prepare_pod --> postgres: Данные\nи результаты
+outliers_pod --> postgres: Данные\nи выбросы
+ml_pod --> postgres: Данные\nи прогнозы
+
+' Airflow связи
+airflow_sched --> airflow_worker: Задачи
+airflow_web --> airflow_sched: Управление
+airflow_worker --> fetch_pod: Запуск
+airflow_worker --> prepare_pod: Запуск
+airflow_worker --> outliers_pod: Запуск
+airflow_worker --> ml_pod: Запуск
+
+fetch_pod --> google_api: API запросы
+fetch_pod --> auth_api: Токены
+fetch_pod --> data_svc: Отправка данных
+
+' Внешние связи
+android --> ingress: HTTP(S) запросы
+google_api --> ingress: OAuth callback
+data_svc --> redis: Прогресс выгрузки
+notif_api --> smtp: Отправка email
+
+@enduml
