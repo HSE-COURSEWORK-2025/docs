@@ -1,0 +1,79 @@
+@startuml
+left to right direction
+
+!theme plain
+title Диаграмма потока данных системы мониторинга здоровья
+skinparam nodesep 20
+skinparam ranksep 20
+
+' ============== Внешние сущности ==============
+rectangle "Пользователь" as user
+rectangle "Google Fitness API" as google_fitness
+rectangle "Android-устройство (Google Health Connect)" as android
+rectangle "SMTP Сервер" as smtp
+
+' ============== Процессы ==============
+package "Микросервисы" {
+  ("Сбор данных") as data_collection
+  ("Обработка и хранение") as data_processing
+  ("Анализ данных") as data_analysis
+  ("Визуализация и отчеты") as visualization
+  ("Управление пользователями") as user_management
+  ("Управление уведомлениями") as notifications
+}
+
+' ============== Хранилища данных ==============
+database "PostgreSQL" as postgres {
+  folder "Сырые данные" as raw_data
+  folder "Обработанные данные" as processed_data
+  folder "Выбросы" as outliers
+  folder "Прогнозы" as predictions
+  folder "Пользователи" as users
+  folder "Уведомления" as notifications_db
+  folder "Оценки" as ratings
+}
+
+database "Redis" as redis {
+  folder "Прогресс выгрузки" as progress
+  folder "Состояния" as states
+  folder "Кеш" as cache
+}
+
+queue "Kafka" as kafka_queue
+
+' ============== Потоки данных ==============
+' Входные потоки
+google_fitness --> data_collection : Данные о здоровье
+android --> data_collection : Данные о здоровье
+user --> user_management : Запросы регистрации/аутентификации
+user --> visualization : Запросы данных и отчетов
+
+' Потоки между процессами
+data_collection --> kafka_queue : Сырые данные
+data_processing --> kafka_queue : Чтение данных
+data_processing --> postgres : Нормализованные данные
+data_processing --> redis : Прогресс выгрузки
+
+data_analysis --> postgres : Запрос данных
+data_analysis --> postgres : Результаты анализа\n(выбросы, прогнозы)
+data_analysis --> notifications : События анализа
+
+visualization --> postgres : Запрос данных\n(сырые, выбросы, прогнозы)
+visualization --> redis : Запрос прогресса
+visualization --> user : Графики и отчеты
+
+user_management --> postgres : Данные пользователей
+user_management --> redis : Сессии и токены
+user_management --> user : QR-код, JWT-токен
+
+notifications --> postgres : Запись уведомлений
+notifications --> redis : Состояния уведомлений
+notifications --> smtp : Email-уведомления
+notifications --> user : Веб-уведомления
+
+' Внутренние потоки
+data_collection --> notifications : События сбора данных
+data_processing --> notifications : События обработки
+
+
+@enduml
