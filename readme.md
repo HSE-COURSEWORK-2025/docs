@@ -46,22 +46,16 @@
 
 Представлены PlantUML-диаграммы и их PNG-версии:
 
-- **Диаграмма развертывания**  
-  - `deployment-diagram.puml`  
-  - [PNG](https://github.com/HSE-COURSEWORK-2025/docs/blob/main/deployment-diagram.png)
+  - [Диаграмма развертывания](https://github.com/HSE-COURSEWORK-2025/docs/blob/main/deployment-diagram.png)
 
-- **Диаграмма потоков данных (DFD)**  
-  - `dfd.puml`  
-  - [PNG](https://github.com/HSE-COURSEWORK-2025/docs/blob/main/dfd.png)
+  - [Диаграмма потоков данных (DFD)](https://github.com/HSE-COURSEWORK-2025/docs/blob/main/dfd.png)
 
-- **Общая архитектура**  
-  - `global-arch.puml`  
-  - [PNG](https://github.com/HSE-COURSEWORK-2025/docs/blob/main/global-arch.png)
+  - [Общая архитектура](https://github.com/HSE-COURSEWORK-2025/docs/blob/main/global-arch.png)
 
-- **Диаграмма последовательностей**  
-  - `sequence-diagram-data-preprocess.puml` — [PNG](https://github.com/HSE-COURSEWORK-2025/docs/blob/main/sequence-diagram-data-preprocess.png)  
-  - `sequence-diagram-fetch-google-fitness-data.puml` — [PNG](https://github.com/HSE-COURSEWORK-2025/docs/blob/main/sequence-diagram-fetch-google-fitness-data.png)  
-  - `sequence-diagram-frontend.puml` — [PNG](https://github.com/HSE-COURSEWORK-2025/docs/blob/main/sequence-diagram-frontend.png)  
-  - `sequence-diagram-ml.puml` — [PNG](https://github.com/HSE-COURSEWORK-2025/docs/blob/main/sequence-diagram-ml.png)  
-  - `sequence-diagram-outliers.puml` — [PNG](https://github.com/HSE-COURSEWORK-2025/docs/blob/main/sequence-diagram-outliers.png)
+- **Диаграммы последовательностей**  
+ [Обработки данных](https://github.com/HSE-COURSEWORK-2025/docs/blob/main/sequence-diagram-data-preprocess.png)  
+ [Выгрузки из Google Fitness API](https://github.com/HSE-COURSEWORK-2025/docs/blob/main/sequence-diagram-fetch-google-fitness-data.png)  
+ [Пользовательского интерфейса](https://github.com/HSE-COURSEWORK-2025/docs/blob/main/sequence-diagram-frontend.png)  
+ [Генерации предсказаний](https://github.com/HSE-COURSEWORK-2025/docs/blob/main/sequence-diagram-ml.png)  
+ [Поиска выбросов](https://github.com/HSE-COURSEWORK-2025/docs/blob/main/sequence-diagram-outliers.png)
 
